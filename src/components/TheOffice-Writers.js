@@ -7,14 +7,14 @@ export default class TheOffice extends React.Component {
 
     constructor (props) {
       super(props)
-      this.state = {}
       this.svgRef = React.createRef()
       this.drawBlocksSquareAlt = this.drawBlocksSquareAlt.bind(this)
     }
 
-    componentDidMount() {
-      console.log('mounted')
-      d3.csv(CSVOfficeSeries).then(this.drawBlocksSquareAlt)
+    componentDidUpdate () {
+      if(this.props.series.length !== undefined) {
+        this.drawBlocksSquareAlt(this.props.series)
+      }
     }
 
     drawBlocksSquareAlt (episodes) {
@@ -36,8 +36,6 @@ export default class TheOffice extends React.Component {
         .attr('width', '100%')
         .style('max-width', '1400px')
         .style('min-width', '900px')
-        // .attr('width', w).attr('height', h)
-        // .style('outline', '1px solid black')      
 
       let runningX = 0
       let runningY = 0      
@@ -247,7 +245,6 @@ export default class TheOffice extends React.Component {
         </div>
       )
     }
-
 }
 
 function toArray(object) {

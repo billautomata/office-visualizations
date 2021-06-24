@@ -52,7 +52,6 @@ export default class OfficeQuoteSearch extends React.Component {
       const color = d3.scaleOrdinal(['#a6cee3'])
       const textColor = d3.scaleOrdinal(['#333', '#333'])
 
-
       const svg = d3.select(this.svgRef.current)
         .attr('width', w).attr('height', h)        
         .style('font-family', 'Roboto')
@@ -71,10 +70,9 @@ export default class OfficeQuoteSearch extends React.Component {
 
       const charactersToRemove = ['?','.',',','!','-']
 
-
-      d3.csv(CSVOfficeSeries).then(d=>{
-        self.series = d
-        d3.csv(CSVOfficeLines).then(lines=>{
+      d3.csv(this.props.seriesURL).then(series=>{
+        self.series = series
+        d3.csv(this.props.linesURL).then(lines=>{
           self.dataLoaded = true
           self.forceUpdate()
 
