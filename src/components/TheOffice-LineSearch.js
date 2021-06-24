@@ -38,7 +38,14 @@ export default class OfficeQuoteSearch extends React.Component {
       this.searchTimeout = {}
     }
 
-    componentDidMount() {
+    componentDidUpdate() {
+
+      if(this.props.series === undefined ||
+        this.props.lines === undefined ||
+        this.dataLoaded === true) {
+          return
+      }
+
       const self = this
 
       window.d3 = d3
@@ -68,244 +75,242 @@ export default class OfficeQuoteSearch extends React.Component {
       
       const seasons = d3.range(9)
 
-      const charactersToRemove = ['?','.',',','!','-']
+      // const charactersToRemove = ['?','.',',','!','-']
 
-      d3.csv(this.props.seriesURL).then(series=>{
-        self.series = series
-        d3.csv(this.props.linesURL).then(lines=>{
-          self.dataLoaded = true
-          self.forceUpdate()
+      const series = this.props.series
+      const lines = this.props.lines 
 
-          self.lines = lines
-          console.log(lines[0])
-          lines = lines.filter(o=>{return o.deleted !== 'TRUE'})
-  
-          // clean up the lines
-          lines.forEach(line=>{
-            line.search_text = line.line_text.replace(RegExp('\\[.*?\\]'),'');          
-            charactersToRemove.forEach((c,idx)=>{
-              line.search_text = line.search_text.replaceAll(c,' ')
-            })          
-          })
-  
-          // populate the episodes
-          lines.forEach(line=>{
-            seasons[Number(line.season)-1] = Number(line.episode)
-          })
-  
-          const scaleX = d3.scaleLinear().domain([0,d3.max(seasons,d=>d)]).range([0,w-margins.left-margins.right])
-          const scaleY = d3.scaleLinear().domain([0,seasons.length]).range([0,h-margins.top-margins.bottom])
-  
-          const elements = {}
-  
-          const gLegendEpisodes = gParent.append('g').attr('transform', `translate(${0} ${h-margins.bottom-27})`).style('user-select', 'none')
-  
-          gLegendEpisodes.append('text').text('EPISODE').attr('text-anchor', 'end').attr('x',-33 ).attr('font-size', 10)
-            .attr('letter-spacing', 1).attr('dy', '0.33em').attr('fill','#AAA')
-          gLegendEpisodes.append('line').attr('x1',0).attr('y1',0).attr('x2',scaleX(25)).attr('y2',0).attr('stroke', "#AAA")
-          d3.range(d3.max(seasons)).forEach(ep=>{
-            gLegendEpisodes.append('circle').attr('cx',scaleX(ep)).attr('cy',0).attr('r',10).attr('fill','white').attr('stroke', '#CCC')
-            gLegendEpisodes.append('text').text(ep+1).attr('x', scaleX(ep)).attr('y', 0).attr('dy','0.33em')
-              .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#AAA')
-          })
-  
-          seasons.forEach((season,seasonIndex)=>{
-            const gLocal = gParent.append('g').attr('transform', `translate(${0} ${scaleY(seasonIndex)})`)
-            elements[seasonIndex] = {}
-            gLocal.append('line').attr('x1',0).attr('y1',0).attr('x2',scaleX(season-1)).attr('y2',0).attr('stroke', "#AAA")
-            gLocal.append('text').text(`Season ${seasonIndex+1}`).attr('text-anchor','end')
-              .attr('x', -24)
-              .attr('font-size', 14).attr('font-weight', 700)
-              .attr('dy', '0.33em').attr('letter-spacing', '.5px')
-              .attr('fill', '#777').style('user-select', 'none')
-  
-            d3.range(season).forEach(episode=>{
-              const gEpisode = gLocal.append('g').attr('transform', `translate (${scaleX(episode)} ${0})`)
-              elements[seasonIndex][episode] = gEpisode
-              gEpisode.append('circle').attr('cx', 0).attr('cy',0).attr('r',14)
-                .attr('stroke', '#AAA').attr('fill', 'white')
-              gEpisode.append('text').attr('cx', 0).attr('cy',0).attr('dy','0.33em').attr('text-anchor', 'middle')            
-                .text(1).attr('font-size', 12).attr('font-weight', 700)
-                .attr('fill', 'white')
-            })
-          })
-  
-          const gPieChart = svg2.append('g').attr('transform', 'translate(92 72)')
-          d3.range(2).forEach(n=>{
-            gPieChart.append('path').attr('class', `_${n}`).attr('stroke', n === 1 ? '#AAA' : 'none') // .attr('stroke', 'black')
-          })
-          const gPieChartLabel = gPieChart.append('g').attr('transform', 'translate(0 70)')
-          const textPieChartLabel = gPieChartLabel.append('text').text(`${0} of 186`)
-            .attr('text-anchor', 'middle').attr('font-size', 18).attr('font-weight', 500)
-  
-          gPieChartLabel.append('text').text(`EPISODES`).attr('y', 18)
-            .attr('text-anchor', 'middle').attr('font-size', 12).attr('font-weight', 300)
-            .attr('letter-spacing', .5)
-            
-          const arcFunction = d3.arc().innerRadius(0).outerRadius(50)
-  
-          // ====================================================================================================================
-          // ====================================================================================================================
-          self.updateGraphs = function (searchString) {
-            if(self.state.quote.length === 0) {
-              return
-            }
-            self.hoverFilterCharacter = null
-            self.expandAll = false
-            let matches = {}
-            
-            // build the bubble dataset          
-            function updateBubbles () {
-              let episodesFound = 0
-              matches = lines.filter(o=>{ 
-                if(self.hoverFilterCharacter !== null) {
-                  if(o.speaker !== self.hoverFilterCharacter) {
-                    return false
-                  }
-                }
-                if(searchString.toLowerCase().trim().split(' ').length === 1) {
-                  return o.search_text.toLowerCase().split(' ').indexOf(searchString.toLowerCase().trim()) !== -1               
-                } else {
-                  return o.search_text.toLowerCase().indexOf(searchString.toLowerCase().trim()) !== -1 
-                }            
-              })
-    
-              matches.forEach(match=>{
-                match.showMore = self.expandAll
-              })            
-  
-              Object.values(elements).forEach((episodes,seasonIdx)=>{
-                Object.values(episodes).forEach((episode,episodeIdx)=>{
-                  episode.select('circle').attr('fill', 'white').attr('stroke', '#AAA').style('cursor', null).on('click', null)
-                  episode.select('text').text(0).attr('fill', 'white').attr('pointer-events', 'none').style('user-select', 'none')
-                })
-              })
-    
-              const seasonsAndEpisodesCounts = matches.reduce((accumulator, value)=>{
-                const S = Number(value.season) - 1
-                const E = Number(value.episode) - 1
-                if(accumulator[S] === undefined) {
-                  accumulator[S] = {}
-                }
-                if(accumulator[S][E] === undefined) {              
-                  accumulator[S][E] = 0
-                }
-                accumulator[S][E] += 1
-                return accumulator
-              }, {})
-    
-              // iterate over the bubbles and populate the ones with results that match the seasons
-              Object.values(elements).forEach((episodes,seasonIdx)=>{
-                Object.values(episodes).forEach((episode,episodeIdx)=>{
-                  if(seasonsAndEpisodesCounts[seasonIdx] !== undefined && seasonsAndEpisodesCounts[seasonIdx][episodeIdx] !== undefined) {
-                    episodesFound += 1
-                    episode.select('circle')
-                      .attr('fill', '#a6cee3')
-                      .attr('stroke', 'none')
-                      .style('cursor', 'pointer')
-                      .on('click', ()=>{
-                        const reference = document.getElementById(`quote_${seasonIdx+1}_${episodeIdx+1}`)
-                        if(reference === null) {
-                          return
-                        }
-                        window.scrollTo({
-                          top: reference.offsetTop,
-                          behavior: 'smooth'
-                        })
-                      })
-                    episode.select('text').text(seasonsAndEpisodesCounts[seasonIdx][episodeIdx])
-                      .attr('fill', '#333') 
-                  }
-                })
-              })
-              // pie chart for how many episodes this term appears in
-              const episodesCount = episodesFound
-              const totalEpisodes = 186
-              const pieFn = d3.pie().sortValues((a,b)=>{return a-b})
-              const arcs = pieFn([episodesCount,totalEpisodes-episodesCount])
-  
-              textPieChartLabel.text(`${episodesCount} of 186`)
-  
-              arcs.forEach((arc,arcIndex)=>{
-                gPieChart.select(`path._${arcIndex}`).datum(arc).attr('d', arcFunction).attr('fill', ['#a6cee3', 'none'][arcIndex])
-              })            
-            }
-            updateBubbles()
-            self.setState({ matches: matches})
-            // characters in the matches
-            const characters = matches.reduce((accumulator, object)=>{
-              // console.log(object)
-              if(accumulator[object.speaker] === undefined) {
-                accumulator[object.speaker] = { name: object.speaker, value: 0, seasonEpisodes: [] }
-              }
-              accumulator[object.speaker].value += 1
-              accumulator[object.speaker].seasonEpisodes.push( {season: object.season, episode: object.episode })
-              return accumulator
-            },{})
-  
-            const treemap = d3.treemap()
-              .tile(d3.treemapBinary)
-              .size([treeMapDimensions.width, treeMapDimensions.height])
-              .padding(1)
-              .round(true)(d3.hierarchy({name: '', children: Object.values(characters)}).sum(d => d.value).sort((a, b) => b.value - a.value))
-              //(d3.hierarchy({ name: 'ok', children: characters }).sum(d => d.value).sort((a, b) => b.value - a.value))
-  
-            treemapParent.selectAll('div').remove()
-  
-            treemap.leaves().forEach((leaf,idx)=>{
-              const p = treemapParent.append('div')
-                .attr('class', 'parentDiv')
-                .attr('id', 'idx_'+leaf.data.name)
-                .style('position', 'absolute')        
-                .style('top', leaf.y0 +'px')
-                .style('left', leaf.x0 +'px')
-                .style('width', (leaf.x1 - leaf.x0)+'px')
-                .style('height', (leaf.y1 - leaf.y0)+'px')
-                .style('background', color(idx))
-                .style('color', textColor(idx))
-                .style('overflow', 'hidden')
-                .style('box-sizing', 'border-box')
-                .style('border-radius', '0%')
-                .on('click', ()=>{
-                  if(self.hoverFilterCharacter === null || self.hoverFilterCharacter !== leaf.data.name) {
-                    self.hoverFilterCharacter = leaf.data.name
-                    self.limitResults = Number.MAX_SAFE_INTEGER
-                    treemapParent.selectAll('div.parentDiv').style('outline', null)
-                    p.style('outline', '1px solid #777')
-                    
-                  } else {
-                    self.hoverFilterCharacter = null
-                    treemapParent.selectAll('div.parentDiv').style('outline', null)
-                    self.limitResults = self.defaultLimitResults
-                  } 
-                  updateBubbles()               
-                  self.forceUpdate()
-                })
-              p.append('div').attr('class', 'name')
-                .style('display', 'inline-block')
-                .style('position','absolute')
-                .style('top', '4px')
-                .style('left', '4px')
-                .style('font-size', '12px')
-                .style('font-weight', '600')
-                .text(leaf.data.name)
-              p.append('div').attr('class', 'percent')
-                .style('display', 'inline-block')
-                .style('font-size', '10px')
-                .style('font-weight', '400')
-                .style('position','absolute')
-                .style('top', '18px')
-                .style('left', '4px')  
-                .text(leaf.data.value)
-            })            
-  
-          }
-  
-          self.updateGraphs(self.state.quote)
-        })
-  
+      console.log(lines[0])
+
+      self.series = series
+      self.lines = lines
+
+      self.dataLoaded = true
+      // self.forceUpdate()
+      
+      // console.log(lines[0])
+      // lines = lines.filter(o=>{return o.deleted !== 'TRUE'})
+
+      // // clean up the lines
+      // lines.forEach(line=>{
+      //   line.search_text = line.line_text.replace(RegExp('\\[.*?\\]'),'');          
+      //   charactersToRemove.forEach((c,idx)=>{
+      //     line.search_text = line.search_text.replaceAll(c,' ')
+      //   })          
+      // })
+
+      // populate the episodes
+      lines.forEach(line=>{
+        seasons[Number(line.season)-1] = Number(line.episode)
       })
 
+      const scaleX = d3.scaleLinear().domain([0,d3.max(seasons,d=>d)]).range([0,w-margins.left-margins.right])
+      const scaleY = d3.scaleLinear().domain([0,seasons.length]).range([0,h-margins.top-margins.bottom])
+
+      const elements = {}
+
+      const gLegendEpisodes = gParent.append('g').attr('transform', `translate(${0} ${h-margins.bottom-27})`).style('user-select', 'none')
+
+      gLegendEpisodes.append('text').text('EPISODE').attr('text-anchor', 'end').attr('x',-33 ).attr('font-size', 10)
+        .attr('letter-spacing', 1).attr('dy', '0.33em').attr('fill','#AAA')
+      gLegendEpisodes.append('line').attr('x1',0).attr('y1',0).attr('x2',scaleX(25)).attr('y2',0).attr('stroke', "#AAA")
+      d3.range(d3.max(seasons)).forEach(ep=>{
+        gLegendEpisodes.append('circle').attr('cx',scaleX(ep)).attr('cy',0).attr('r',10).attr('fill','white').attr('stroke', '#CCC')
+        gLegendEpisodes.append('text').text(ep+1).attr('x', scaleX(ep)).attr('y', 0).attr('dy','0.33em')
+          .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#AAA')
+      })
+
+      seasons.forEach((season,seasonIndex)=>{
+        const gLocal = gParent.append('g').attr('transform', `translate(${0} ${scaleY(seasonIndex)})`)
+        elements[seasonIndex] = {}
+        gLocal.append('line').attr('x1',0).attr('y1',0).attr('x2',scaleX(season-1)).attr('y2',0).attr('stroke', "#AAA")
+        gLocal.append('text').text(`Season ${seasonIndex+1}`).attr('text-anchor','end')
+          .attr('x', -24)
+          .attr('font-size', 14).attr('font-weight', 700)
+          .attr('dy', '0.33em').attr('letter-spacing', '.5px')
+          .attr('fill', '#777').style('user-select', 'none')
+
+        d3.range(season).forEach(episode=>{
+          const gEpisode = gLocal.append('g').attr('transform', `translate (${scaleX(episode)} ${0})`)
+          elements[seasonIndex][episode] = gEpisode
+          gEpisode.append('circle').attr('cx', 0).attr('cy',0).attr('r',14)
+            .attr('stroke', '#AAA').attr('fill', 'white')
+          gEpisode.append('text').attr('cx', 0).attr('cy',0).attr('dy','0.33em').attr('text-anchor', 'middle')            
+            .text(1).attr('font-size', 12).attr('font-weight', 700)
+            .attr('fill', 'white')
+        })
+      })
+
+      const gPieChart = svg2.append('g').attr('transform', 'translate(92 72)')
+      d3.range(2).forEach(n=>{
+        gPieChart.append('path').attr('class', `_${n}`).attr('stroke', n === 1 ? '#AAA' : 'none') // .attr('stroke', 'black')
+      })
+      const gPieChartLabel = gPieChart.append('g').attr('transform', 'translate(0 70)')
+      const textPieChartLabel = gPieChartLabel.append('text').text(`${0} of 186`)
+        .attr('text-anchor', 'middle').attr('font-size', 18).attr('font-weight', 500)
+
+      gPieChartLabel.append('text').text(`EPISODES`).attr('y', 18)
+        .attr('text-anchor', 'middle').attr('font-size', 12).attr('font-weight', 300)
+        .attr('letter-spacing', .5)
+        
+      const arcFunction = d3.arc().innerRadius(0).outerRadius(50)
+
+      // ====================================================================================================================
+      // ====================================================================================================================
+      self.updateGraphs = function (searchString) {
+        if(self.state.quote.length === 0) {
+          return
+        }
+        self.hoverFilterCharacter = null
+        self.expandAll = false
+        let matches = {}
+
+        // build the bubble dataset          
+        function updateBubbles () {
+          let episodesFound = 0
+          matches = lines.filter(o=>{ 
+            if(self.hoverFilterCharacter !== null) {
+              if(o.speaker !== self.hoverFilterCharacter) {
+                return false
+              }
+            }
+            if(searchString.toLowerCase().trim().split(' ').length === 1) {
+              return o.search_text.toLowerCase().split(' ').indexOf(searchString.toLowerCase().trim()) !== -1               
+            } else {
+              return o.search_text.toLowerCase().indexOf(searchString.toLowerCase().trim()) !== -1 
+            }            
+          })
+
+          matches.forEach(match=>{
+            match.showMore = self.expandAll
+          })            
+
+          Object.values(elements).forEach((episodes,seasonIdx)=>{
+            Object.values(episodes).forEach((episode,episodeIdx)=>{
+              episode.select('circle').attr('fill', 'white').attr('stroke', '#AAA').style('cursor', null).on('click', null)
+              episode.select('text').text(0).attr('fill', 'white').attr('pointer-events', 'none').style('user-select', 'none')
+            })
+          })
+
+          const seasonsAndEpisodesCounts = matches.reduce((accumulator, value)=>{
+            const S = Number(value.season) - 1
+            const E = Number(value.episode) - 1
+            if(accumulator[S] === undefined) {
+              accumulator[S] = {}
+            }
+            if(accumulator[S][E] === undefined) {              
+              accumulator[S][E] = 0
+            }
+            accumulator[S][E] += 1
+            return accumulator
+          }, {})
+
+          // iterate over the bubbles and populate the ones with results that match the seasons
+          Object.values(elements).forEach((episodes,seasonIdx)=>{
+            Object.values(episodes).forEach((episode,episodeIdx)=>{
+              if(seasonsAndEpisodesCounts[seasonIdx] !== undefined && seasonsAndEpisodesCounts[seasonIdx][episodeIdx] !== undefined) {
+                episodesFound += 1
+                episode.select('circle')
+                  .attr('fill', '#a6cee3')
+                  .attr('stroke', 'none')
+                  .style('cursor', 'pointer')
+                  .on('click', ()=>{
+                    const reference = document.getElementById(`quote_${seasonIdx+1}_${episodeIdx+1}`)
+                    if(reference === null) {
+                      return
+                    }
+                    window.scrollTo({
+                      top: reference.offsetTop,
+                      behavior: 'smooth'
+                    })
+                  })
+                episode.select('text').text(seasonsAndEpisodesCounts[seasonIdx][episodeIdx])
+                  .attr('fill', '#333') 
+              }
+            })
+          })
+          // pie chart for how many episodes this term appears in
+          const episodesCount = episodesFound
+          const totalEpisodes = 186
+          const pieFn = d3.pie().sortValues((a,b)=>{return a-b})
+          const arcs = pieFn([episodesCount,totalEpisodes-episodesCount])
+
+          textPieChartLabel.text(`${episodesCount} of 186`)
+
+          arcs.forEach((arc,arcIndex)=>{
+            gPieChart.select(`path._${arcIndex}`).datum(arc).attr('d', arcFunction).attr('fill', ['#a6cee3', 'none'][arcIndex])
+          })            
+        }
+        updateBubbles()
+        self.setState({ matches: matches})
+        // characters in the matches
+        const characters = matches.reduce((accumulator, object)=>{
+          // console.log(object)
+          if(accumulator[object.speaker] === undefined) {
+            accumulator[object.speaker] = { name: object.speaker, value: 0, seasonEpisodes: [] }
+          }
+          accumulator[object.speaker].value += 1
+          accumulator[object.speaker].seasonEpisodes.push( {season: object.season, episode: object.episode })
+          return accumulator
+        },{})
+
+        const treemap = d3.treemap()
+          .tile(d3.treemapBinary)
+          .size([treeMapDimensions.width, treeMapDimensions.height])
+          .padding(1)
+          .round(true)(d3.hierarchy({name: '', children: Object.values(characters)}).sum(d => d.value).sort((a, b) => b.value - a.value))
+          //(d3.hierarchy({ name: 'ok', children: characters }).sum(d => d.value).sort((a, b) => b.value - a.value))
+
+        treemapParent.selectAll('div').remove()
+
+        treemap.leaves().forEach((leaf,idx)=>{
+          const p = treemapParent.append('div')
+            .attr('class', 'parentDiv')
+            .attr('id', 'idx_'+leaf.data.name)
+            .style('position', 'absolute')        
+            .style('top', leaf.y0 +'px')
+            .style('left', leaf.x0 +'px')
+            .style('width', (leaf.x1 - leaf.x0)+'px')
+            .style('height', (leaf.y1 - leaf.y0)+'px')
+            .style('background', color(idx))
+            .style('color', textColor(idx))
+            .style('overflow', 'hidden')
+            .style('box-sizing', 'border-box')
+            .style('border-radius', '0%')
+            .on('click', ()=>{
+              if(self.hoverFilterCharacter === null || self.hoverFilterCharacter !== leaf.data.name) {
+                self.hoverFilterCharacter = leaf.data.name
+                self.limitResults = Number.MAX_SAFE_INTEGER
+                treemapParent.selectAll('div.parentDiv').style('outline', null)
+                p.style('outline', '1px solid #777')
+                
+              } else {
+                self.hoverFilterCharacter = null
+                treemapParent.selectAll('div.parentDiv').style('outline', null)
+                self.limitResults = self.defaultLimitResults
+              } 
+              updateBubbles()               
+              self.forceUpdate()
+            })
+          p.append('div').attr('class', 'name')
+            .style('display', 'inline-block')
+            .style('position','absolute')
+            .style('top', '4px')
+            .style('left', '4px')
+            .style('font-size', '12px')
+            .style('font-weight', '600')
+            .text(leaf.data.name)
+          p.append('div').attr('class', 'percent')
+            .style('display', 'inline-block')
+            .style('font-size', '10px')
+            .style('font-weight', '400')
+            .style('position','absolute')
+            .style('top', '18px')
+            .style('left', '4px')  
+            .text(leaf.data.value)
+        })            
+      }  
+      self.updateGraphs(self.state.quote)
 
     }
 

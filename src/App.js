@@ -26,7 +26,8 @@ export default class App extends React.Component {
   componentDidMount () {
     csv(CSVOfficeSeries).then(series=>{
       csv(CSVOfficeLines).then(lines=>{
-        cleanUpLines(lines)
+        // cleanUpLines(lines)
+        lines = cleanUpLines(lines)
         this.setState({ series, lines })
       })
     })
@@ -42,6 +43,6 @@ export default class App extends React.Component {
         <TheOfficeWords series={this.state.series} lines={this.state.lines}/>
         <TheOfficeLineSearch series={this.state.series} lines={this.state.lines}/>
       </div>
-    );
+    )
   }  
 }
