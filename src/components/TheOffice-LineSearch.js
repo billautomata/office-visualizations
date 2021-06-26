@@ -232,7 +232,7 @@ export default class OfficeQuoteSearch extends React.Component {
           // pie chart for how many episodes this term appears in
           const episodesCount = episodesFound
           const totalEpisodes = 186
-          const pieFn = d3.pie().sortValues((a,b)=>{return a-b})
+          const pieFn = d3.pie()//.sortValues((a,b)=>{return a-b})
           const arcs = pieFn([episodesCount,totalEpisodes-episodesCount])
 
           textPieChartLabel.text(`${episodesCount} of 186`)

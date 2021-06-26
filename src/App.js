@@ -10,6 +10,7 @@ import CSVOfficeLines from './data/the-office-lines-scripts.csv'
 import TheOfficeWriters from './components/TheOffice-Writers.js'
 import TheOfficeWords from './components/TheOffice-Words.js'
 import TheOfficeLineSearch from './components/TheOffice-LineSearch.js'
+import TheOfficeSceneRelationships from './components/TheOffice-SceneRelationships.js'
 
 import cleanUpLines from './lib/cleanUpLines.js'
 
@@ -36,12 +37,10 @@ export default class App extends React.Component {
   render() {
     return (
       <div className="App">
-        {/* <TheOfficeWriters seriesURL={CSVOfficeSeries}/> */}
-        {/* <TheOfficeWords seriesURL={CSVOfficeSeries} linesURL={CSVOfficeLines}/> */}
-        {/* <TheOfficeLineSearch seriesURL={CSVOfficeSeries} linesURL={CSVOfficeLines}/> */}
-        <TheOfficeWriters series={this.state.series}/>
+        <TheOfficeSceneRelationships lines={this.state.lines}/>
+        {/* <TheOfficeWriters series={this.state.series}/>
         <TheOfficeWords series={this.state.series} lines={this.state.lines}/>
-        <TheOfficeLineSearch series={this.state.series} lines={this.state.lines}/>
+        <TheOfficeLineSearch series={this.state.series} lines={this.state.lines}/> */}
       </div>
     )
   }  
