@@ -8,6 +8,7 @@ export default function cleanUpLines (lines) {
     charactersToRemove.forEach((c,idx)=>{
       line.search_text = line.search_text.replaceAll(c,' ')
     })          
+    line.search_text = line.search_text.split(' ').filter(o=>o.length>0).join(' ')
   })
   return filteredLines
 }

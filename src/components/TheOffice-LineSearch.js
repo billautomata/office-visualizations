@@ -9,8 +9,13 @@ import SpiralScreen from './LoadingScreen.js'
 
 // todo
 // code clean-up
+// add writer to the expanded view 
+// remove the pie chart, use a full width bar chart for episodes
+
 // bugs
-// no results found screws everything up
+
+// tests
+//
 
 export default class OfficeQuoteSearch extends React.Component {
 
@@ -36,12 +41,23 @@ export default class OfficeQuoteSearch extends React.Component {
 
       this.dataLoaded = false
       this.searchTimeout = {}
+
+      this.runD3Code = this.runD3Code.bind(this)
+
+    }
+
+    componentDidMount () {
+      this.runD3Code()
     }
 
     componentDidUpdate() {
+      this.runD3Code()
+    }
 
-      if(this.props.series === undefined ||
-        this.props.lines === undefined ||
+    runD3Code() {
+
+      if(this.props.series.length === undefined ||
+        this.props.lines.length === undefined ||
         this.dataLoaded === true) {
           return
       }
@@ -54,8 +70,15 @@ export default class OfficeQuoteSearch extends React.Component {
       const w = 1024
       const h = 384
 
-      const treeMapDimensions = { width: 770, height: 172 }
-      const treemapParent = d3.select(this.treemapRef.current).style('user-select', 'none').style('cursor', 'pointer')
+      const treeMapDimensions = { width: 1024, height: 172 }
+      const treemapParent = d3.select(this.treemapRef.current)
+        .style('position', null)
+        .style('height', `${treeMapDimensions.height+16}px`)
+        .append('div').style('position', 'relative')
+        .style('user-select', 'none')
+        .style('cursor', 'pointer')
+        .style('padding-bottom', treeMapDimensions.height)
+        
       const color = d3.scaleOrdinal(['#a6cee3'])
       const textColor = d3.scaleOrdinal(['#333', '#333'])
 
@@ -80,24 +103,10 @@ export default class OfficeQuoteSearch extends React.Component {
       const series = this.props.series
       const lines = this.props.lines 
 
-      console.log(lines[0])
-
       self.series = series
       self.lines = lines
 
       self.dataLoaded = true
-      // self.forceUpdate()
-      
-      // console.log(lines[0])
-      // lines = lines.filter(o=>{return o.deleted !== 'TRUE'})
-
-      // // clean up the lines
-      // lines.forEach(line=>{
-      //   line.search_text = line.line_text.replace(RegExp('\\[.*?\\]'),'');          
-      //   charactersToRemove.forEach((c,idx)=>{
-      //     line.search_text = line.search_text.replaceAll(c,' ')
-      //   })          
-      // })
 
       // populate the episodes
       lines.forEach(line=>{
@@ -131,9 +140,11 @@ export default class OfficeQuoteSearch extends React.Component {
           .attr('fill', '#777').style('user-select', 'none')
 
         d3.range(season).forEach(episode=>{
-          const gEpisode = gLocal.append('g').attr('transform', `translate (${scaleX(episode)} ${0})`)
+          const gEpisode = gLocal.append('g')
+            .attr('transform', `translate (${scaleX(episode)} ${0})`)
+            .attr('data-testid', 'circle_parent')
           elements[seasonIndex][episode] = gEpisode
-          gEpisode.append('circle').attr('cx', 0).attr('cy',0).attr('r',14)
+          gEpisode.append('circle').attr('data-testid', `circle_${seasonIndex}_${episode}`).attr('cx', 0).attr('cy',0).attr('r',14)
             .attr('stroke', '#AAA').attr('fill', 'white')
           gEpisode.append('text').attr('cx', 0).attr('cy',0).attr('dy','0.33em').attr('text-anchor', 'middle')            
             .text(1).attr('font-size', 12).attr('font-weight', 700)
@@ -255,7 +266,7 @@ export default class OfficeQuoteSearch extends React.Component {
         },{})
 
         const treemap = d3.treemap()
-          .tile(d3.treemapBinary)
+          .tile(d3.treemapSquarify.ratio(2))
           .size([treeMapDimensions.width, treeMapDimensions.height])
           .padding(1)
           .round(true)(d3.hierarchy({name: '', children: Object.values(characters)}).sum(d => d.value).sort((a, b) => b.value - a.value))
@@ -363,113 +374,114 @@ export default class OfficeQuoteSearch extends React.Component {
               }
             })()
           }
-          <div style={{display: this.dataLoaded ? null : 'none' }}>
-          <Grid container item xs={12}>
-            <Grid item xs={12}>
-              <TextField label="Quote" variant="outlined" 
-                defaultValue={this.state.quote} 
-                style={{width: 768, marginBottom: 4, marginTop: 12}}
-                onChange={(event)=>{ 
-                  // console.log(event.nativeEvent.data, event.nativeEvent.target.value) 
-                  this.setState({ quote: event.nativeEvent.target.value })
-                }}
-                onKeyUp={(event)=>{
-                  // console.log(event.nativeEvent)
-                  const self = this
-                  clearTimeout(this.searchTimeout)
-                  if(event.nativeEvent.code === 'Enter') {
-                    self.updateGraphs(self.state.quote)
-                  }                  
-                }}/>
-            </Grid>
-          </Grid>
-          <Grid container style={{ display: this.state.matches.length > 0 ? null : 'none' }}>
-            <Grid item xs={12}>
-              <svg ref={this.svgRef}/>
-            </Grid>
-            <Grid item container xs={12} justify='center'>
-              <Grid item xs={2}><svg ref={this.svgRef2}/></Grid>
-              <Grid item xs={7}><div ref={this.treemapRef} style={{ position: 'relative' }} /></Grid>
-            </Grid>         
-            <Grid item container style={{width: 1024, margin: 'auto', fontFamily: 'Roboto', letterSpacing: 0.5}}>
-              <Grid item style={{ textAlign: 'right' }} xs={12}>
-                <b>{ this.hoverFilterCharacter === null ? this.state.matches.length : this.state.matches.filter(o=>{return o.speaker === this.hoverFilterCharacter}).length }</b> results found 
-                {
-                  (()=>{
-                    if (this.state.matches.length > this.limitResults) {
-                      return (
-                        <>
-                          <br/>
-                          <span style={{ fontSize: 12 }}>Showing {this.limitResults}. </span>
-                          <span style={{ cursor: 'pointer', color: 'steelblue', fontSize: 10}}
-                            onClick={()=>{
-                              this.limitResults = this.state.matches.length + 1
-                              this.forceUpdate()
-                            }}>show all</span>
-                        </>
-                      )
+          <Grid container item style={{display: this.dataLoaded ? null : 'none' }}>
+            <Grid container item xs={12}>
+              <Grid item xs={12}>
+                <TextField label="Quote" variant="outlined" 
+                  defaultValue={this.state.quote} 
+                  style={{width: 768, marginBottom: 4, marginTop: 12}}
+                  onChange={(event)=>{ 
+                    // console.log(event.nativeEvent.data, event.nativeEvent.target.value) 
+                    this.setState({ quote: event.nativeEvent.target.value })
+                  }}
+                  onKeyUp={(event)=>{
+                    // console.log(event.nativeEvent)
+                    const self = this
+                    clearTimeout(this.searchTimeout)
+                    if(event.nativeEvent.code === 'Enter') {
+                      self.updateGraphs(self.state.quote)
                     }                  
-                  })()
-                }
-              </Grid>                        
-              <Grid item container xs={12} alignItems='center' style={{ padding: 12, textAlign: 'center', marginBottom: 2, fontWeight: 600, letterSpacing: 1 }}>
-                <Grid item xs={1} style={{textDecoration: 'underline'}}>Season</Grid>
-                <Grid item xs={2} style={{textDecoration: 'underline'}}>Episode</Grid>
-                <Grid item xs={2} style={{textDecoration: 'underline'}}>Speaker</Grid>
-                {/* <Grid item xs={1}>&nbsp;</Grid> */}
-                <Grid item xs={6} style={{ textAlign: 'left', textDecoration: 'underline' }}>Line</Grid>
-                <Grid item xs={1} style={{ cursor: 'pointer', color: 'steelblue', fontSize: 10, fontWeight: 500, textAlign: 'right', textDecoration: 'none !important' }}
-                    onClick={()=>{ this.expandAll = !this.expandAll; this.state.matches.forEach(match=>{match.showMore = this.expandAll}); this.forceUpdate() }}>
-                      { this.expandAll !== true ? 'expand all' : 'collapse all' }
+                  }}/>
+              </Grid>
+            </Grid>
+            <Grid container item style={{ display: this.state.matches.length > 0 ? null : 'none' }}>
+              <Grid item xs={12}>
+                <svg ref={this.svgRef} data-testid='bubbles'/>
+              </Grid>
+              <Grid item container xs={12} justify='center'>
+                {/* <Grid item xs={2}><svg ref={this.svgRef2}/></Grid> */}
+                <Grid item xs={9}><div ref={this.treemapRef} style={{ position: 'relatdive' }} /></Grid>
+              </Grid>         
+              <Grid item container style={{width: 1024, margin: 'auto', fontFamily: 'Roboto', letterSpacing: 0.5}}>
+                <Grid data-testid='results-found' item style={{ textAlign: 'right' }} xs={12}>
+                  <b>{ this.hoverFilterCharacter === null ? this.state.matches.length : this.state.matches.filter(o=>{return o.speaker === this.hoverFilterCharacter}).length }</b> results found 
+                  {
+                    (()=>{
+                      if (this.state.matches.length > this.limitResults) {
+                        return (
+                          <>
+                            <br/>
+                            <span style={{ fontSize: 12 }}>Showing {this.limitResults}. </span>
+                            <span style={{ cursor: 'pointer', color: 'steelblue', fontSize: 10}}
+                              onClick={()=>{
+                                this.limitResults = this.state.matches.length + 1
+                                this.forceUpdate()
+                              }}>show all</span>
+                          </>
+                        )
+                      }                  
+                    })()
+                  }
+                </Grid>                        
+                <Grid item container xs={12} alignItems='center' style={{ padding: 12, textAlign: 'center', marginBottom: 2, fontWeight: 600, letterSpacing: 1 }}>
+                  <Grid item xs={1} style={{textDecoration: 'underline'}}>Season</Grid>
+                  <Grid item xs={2} style={{textDecoration: 'underline'}}>Episode</Grid>
+                  <Grid item xs={2} style={{textDecoration: 'underline'}}>Speaker</Grid>
+                  {/* <Grid item xs={1}>&nbsp;</Grid> */}
+                  <Grid item xs={6} style={{ textAlign: 'left', textDecoration: 'underline' }}>Line</Grid>
+                  <Grid item xs={1} style={{ cursor: 'pointer', color: 'steelblue', fontSize: 10, fontWeight: 500, textAlign: 'right', textDecoration: 'none !important' }}
+                      onClick={()=>{ this.expandAll = !this.expandAll; this.state.matches.forEach(match=>{match.showMore = this.expandAll}); this.forceUpdate() }}>
+                        { this.expandAll !== true ? 'expand all' : 'collapse all' }
+                  </Grid>
                 </Grid>
-              </Grid>      
-              {
-                this.state.matches.slice(0,this.limitResults)
-                  .filter(match=>{
-                    if(this.hoverFilterCharacter === null) { 
-                      return true 
-                    } else {
-                      return match.speaker === this.hoverFilterCharacter
-                    }
-                  })
-                  .map((match,matchIndex)=>{
-                  return (
-                    <Grid id={`quote_${match.season}_${match.episode}`} key={`match_${match.id}`} item container xs={12} alignItems='center' style={{ borderRadius: 4, backgroundColor: matchIndex % 2 === 0 ? "#FFFFFF" : '#F3F3F3', padding: 12, textAlign: 'center', marginBottom: 0 }}>
-                      <Grid item xs={1}>{match.season}</Grid>
-                      <Grid item xs={2}>{this.series.filter(o=>{ return Number(o.Season) === Number(match.season) })[Number(match.episode)-1].EpisodeTitle}</Grid>
-                      <Grid item xs={2}>{match.speaker}</Grid>
-                      <Grid item xs={6} style={{ textAlign: 'left' }}>
-                        {(()=>{
-                          if (match.showMore === true) {
-                            const previousLine = this.lines[Number(match.id)-2]
-                            return (
-                              <div style={{padding: '0px 0px 12px 0px'}}><b>{previousLine.speaker}</b> {previousLine.line_text}</div>
-                            )
-                          }
-                        })()}
-                        <b>{match.showMore ? match.speaker + ' ' : ''}</b>{match.line_text}
-                        {(()=>{
-                          if (match.showMore === true) {
-                            const previousLine = this.lines[Number(match.id)]
-                            return (
-                              <div style={{padding: '12px 0px 0px 0px'}}><b>{previousLine.speaker}</b> {previousLine.line_text}</div>
-                            )
-                          }
-                        })()}
-                      </Grid>
-                      <Grid item xs={1} style={{ cursor: 'pointer', color: 'steelblue', fontSize: 10, textAlign: 'right' }}
-                        onClick={()=>{ match.showMore = !match.showMore; this.forceUpdate() }}>{ match.showMore ? 'less' : 'more'}</Grid>
-                    </Grid>
-                    
-                  )                
-                })
-              }
-            </Grid> 
+                <Grid item container data-testid='matches'>
+                  {
+                    this.state.matches.slice(0,this.limitResults)
+                      .filter(match=>{
+                        if(this.hoverFilterCharacter === null) { 
+                          return true 
+                        } else {
+                          return match.speaker === this.hoverFilterCharacter
+                        }
+                      })
+                      .map((match,matchIndex)=>{
+                      return (
+                        <Grid data-testid={`matches_${match.id}`} id={`quote_${match.season}_${match.episode}`} key={`match_${match.id}`} item container xs={12} alignItems='center' style={{ borderRadius: 4, backgroundColor: matchIndex % 2 === 0 ? "#FFFFFF" : '#F3F3F3', padding: 12, textAlign: 'center', marginBottom: 0 }}>
+                          <Grid item xs={1}>{match.season}</Grid>
+                          <Grid item xs={2}>{this.series.filter(o=>{ return Number(o.Season) === Number(match.season) })[Number(match.episode)-1].EpisodeTitle}</Grid>
+                          <Grid item xs={2}>{match.speaker}</Grid>
+                          <Grid item xs={6} style={{ textAlign: 'left' }}>
+                            {(()=>{
+                              if (match.showMore === true) {
+                                const previousLine = this.lines.filter(o=>{ return Number(o.id) === Number(match.id)-1 })[0]
+                                return (
+                                  <div style={{padding: '0px 0px 12px 0px'}}><b>{previousLine.speaker}</b> {previousLine.line_text}</div>
+                                )
+                              }
+                            })()}
+                            <b>{match.showMore ? match.speaker + ' ' : ''}</b>{match.line_text}
+                            {(()=>{
+                              if (match.showMore === true) {
+                                const nextLine = this.lines.filter(o=>{ return Number(o.id) === Number(match.id)+1 })[0]
+                                return (
+                                  <div style={{padding: '12px 0px 0px 0px'}}><b>{nextLine.speaker}</b> {nextLine.line_text}</div>
+                                )
+                              }
+                            })()}
+                          </Grid>
+                          <Grid item xs={1} style={{ cursor: 'pointer', color: 'steelblue', fontSize: 10, textAlign: 'right' }}
+                            onClick={()=>{ match.showMore = !match.showMore; this.forceUpdate() }}>{ match.showMore ? 'less' : 'more'}</Grid>
+                        </Grid>                
+                      )                
+                    })
+                  }
+                </Grid>      
+              </Grid> 
+            </Grid>
+            <Grid container item xs={12} style={{ display: this.state.matches.length === 0 ? null : 'none' }}>
+              <Grid xs={12} item style={{ padding: 24, textAlign: 'center' }}>No results found.</Grid>
+            </Grid>        
           </Grid>
-          <Grid container style={{ display: this.state.matches.length === 0 ? null : 'none' }}>
-            <Grid xs={12} item style={{ padding: 24, textAlign: 'center' }}>No results found.</Grid>
-          </Grid>        
-          </div>
         </Grid>
       )
     }

@@ -11,8 +11,6 @@ export default class LoadingScreen extends React.Component {
     }
 
     componentDidMount() {
-      console.log('mounted')
-
       const w = 512
       const h = 512
 

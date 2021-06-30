@@ -13,13 +13,13 @@ export default class OfficeSceneRelationship extends React.Component {
     componentDidMount() {
       console.log('mounted')
 
-      this.w = 768
+      this.w = 1024
       this.h = 768
 
       const svg = d3.select(this.svgRef.current)
         .attr('viewBox', [0,0,this.w,this.h].join(' '))
         .attr('width', this.w)        
-        // .style('outline', '1px solid black')
+        .style('outline', '1px solid black')
         .style('font-family', 'Roboto')
     }
 
@@ -28,8 +28,7 @@ export default class OfficeSceneRelationship extends React.Component {
       if(this.props.lines.length === undefined ||
         this.graphDrawn === true) {
         return
-      }
-      console.log('here')
+      }      
       this.graphDrawn = true
 
       const svg = d3.select(this.svgRef.current)
@@ -97,8 +96,6 @@ export default class OfficeSceneRelationship extends React.Component {
       // this.circlePack({relationships, svg})
       this.radialGraph({relationships, svg})
       // this.forceDirectedGraph({relationships, svg})
-
-
     }
 
     radialGraph(o) {
@@ -106,9 +103,9 @@ export default class OfficeSceneRelationship extends React.Component {
       // params to tweak
       const defaultOpacity = 0.75
       const fadedOpacity = 0.0
-      const r0 = this.w*0.3
-      const r1 = this.w*0.4      
-      const iR = .5
+      const r0 = this.h*0.4
+      const r1 = this.h*0.45     
+      const iR = .33
 
       // hardcoded params, leave alone
       const arcOffset = Math.PI*0.5
@@ -119,8 +116,9 @@ export default class OfficeSceneRelationship extends React.Component {
       const arcFn = d3.arc().innerRadius(r0).outerRadius(r1).cornerRadius(5)
       const pie = d3.pie().sort((a,b)=>{return b.total - a.total}).value(d=>d.total)
 
-      // register of paths
+      // register of elements that change when the interactions happen
       const paths = {}
+      const texts = {}
 
       // graphing begins
       const gLocal = o.svg.append('g').attr('transform', `translate(${this.w*0.5} ${this.h*0.5})`)
@@ -136,7 +134,7 @@ export default class OfficeSceneRelationship extends React.Component {
         .data(arcs).enter()  
         .append('path')
         .attr('class', 'character-arc')
-        .attr('id', d=>{ console.log('d',JSON.stringify(d.data)); return d.data.name })
+        .attr('id', d=>{ return d.data.name })
         .attr('d', arcFn)
         .attr('fill', (d,i)=>color(Number(i)))
         .attr('stroke', '#FFF')
@@ -151,10 +149,13 @@ export default class OfficeSceneRelationship extends React.Component {
 
       function touchAll (v) {
         Object.values(paths).forEach(pathGroup=>{
-          console.log(pathGroup)
+          // console.log(pathGroup)
           pathGroup.forEach(path=>{
             path.attr('opacity', v)
           })
+        })
+        Object.values(texts).forEach(text=>{
+          text.select('tspan').text(text.datum().total)
         })
       }
 
@@ -163,6 +164,11 @@ export default class OfficeSceneRelationship extends React.Component {
         gLocal.select(`path.character-arc#${name}`).attr('opacity', 1)
         paths[name].forEach(path=>{
           path.attr('opacity', 1)
+        })
+        Object.values(texts).forEach(text=>{
+          const v = o.relationships[name][text.datum().name]
+          if(text.datum().name === name) { return }
+          text.select('tspan').text(v === undefined ? 0 : v)
         })
       }
 
@@ -186,15 +192,18 @@ export default class OfficeSceneRelationship extends React.Component {
           textAnchor = 'middle'
         }
 
-        gLocal.append('text')
-          .attr('transform', `translate(${pt1.x} ${pt1.y}) \ 
-                                rotate(${rotation})`)
-          .attr('x', 0).attr('y', 0).text(arcData.data.name)
-          .attr('dy', '.33em')
-          .attr('text-anchor', textAnchor) 
+        texts[arcData.data.name] = gLocal.append('text').text(`${arcData.data.name} - `)
+          .attr('id', `${arcData.data.name}`)
+          .datum({ total: arcData.data.total, name: arcData.data.name })
+          .attr('transform', `translate(${pt1.x} ${pt1.y}) rotate(${rotation})`)
+          .attr('x', 0).attr('y', 0).attr('dy', '.33em')
+          .attr('text-anchor', textAnchor).attr('font-size', 16)
+          .attr('font-weight', 300)
+        
+        texts[arcData.data.name].append('tspan').text(`${arcData.data.total}`).attr('dy','-1px')
+          .attr('font-size', 12).attr('font-weight',600)
       })
 
-      
       arcs.forEach((arcData, arcIndex)=>{      
 
         paths[arcData.data.name] = []
@@ -202,7 +211,7 @@ export default class OfficeSceneRelationship extends React.Component {
         let sum = 0 
         const arcDistance = arcData.endAngle-arcData.startAngle                
         Object.keys(arcData.data).filter(o=>{return o !== 'name' && o !== 'total'}).forEach(name=>{ sum+= arcData.data[name] })
-        const arcScale = d3.scaleLinear().domain([0,sum]).range([0,arcDistance])        
+        const arcScale = d3.scaleLinear().domain([0,sum]).range([0,arcDistance*0.99])        
 
         let runningAngle = 0
         toArray(arcData.data).sort((a,b)=>{return a.value - b.value }).forEach((v,otherArcIdx)=>{
@@ -228,6 +237,8 @@ export default class OfficeSceneRelationship extends React.Component {
           paths[arcData.data.name].push(path)
         })
       })
+
+      console.log('texts', texts)
 
     }
 
