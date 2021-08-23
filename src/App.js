@@ -1,4 +1,10 @@
 import React from 'react'
+import {
+  HashRouter as Router,
+  Switch,
+  Route,
+  Link
+} from "react-router-dom";
 
 import './App.css'
 
@@ -11,7 +17,6 @@ import TheOfficeWriters from './components/TheOffice-Writers.js'
 import TheOfficeWords from './components/TheOffice-Words.js'
 import TheOfficeLineSearch from './components/TheOffice-LineSearch.js'
 import TheOfficeSceneRelationships from './components/TheOffice-SceneRelationships.js'
-// import TheOfficeTalkingHeads from './components/TheOffice-TalkingHeads.js'
 
 import cleanUpLines from './lib/cleanUpLines.js'
 
@@ -28,7 +33,6 @@ export default class App extends React.Component {
   componentDidMount () {
     csv(CSVOfficeSeries).then(series=>{
       csv(CSVOfficeLines).then(lines=>{
-        // cleanUpLines(lines)
         lines = cleanUpLines(lines)
         this.setState({ series, lines })
       })
@@ -37,12 +41,27 @@ export default class App extends React.Component {
 
   render() {
     return (
-      <div className="App">
-        {/* <TheOfficeSceneRelationships lines={this.state.lines}/> */}
-        {/* <TheOfficeWriters series={this.state.series}/> */}
-        {/* <TheOfficeWords series={this.state.series} lines={this.state.lines}/> */}
-        <TheOfficeLineSearch series={this.state.series} lines={this.state.lines}/>
-      </div>
+      <Router> 
+        <div className="App">
+          <Switch>
+            <Route exact path='/relationships'>
+              <TheOfficeSceneRelationships lines={this.state.lines}/>
+            </Route>
+            <Route exact path='/writers'>
+              <>
+                <TheOfficeWriters series={this.state.series}/>
+                {/* <TheOfficeWords series={this.state.series} lines={this.state.lines}/> */}
+              </>
+            </Route>
+            <Route exact path='/quote-search'>
+              <TheOfficeLineSearch series={this.state.series} lines={this.state.lines}/>
+            </Route>     
+            <Route path='/'>
+              <div>Foo</div>
+            </Route>
+          </Switch>       
+        </div>
+      </Router>      
     )
   }  
 }

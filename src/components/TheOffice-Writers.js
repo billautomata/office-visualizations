@@ -100,7 +100,7 @@ export default class TheOffice extends React.Component {
             if (writers[_element] === undefined) {
               writers[_element] = 0
             }
-            writers[_element] += 1 / episode.Writers.split(' | ').length  
+            writers[_element] += 1 
             episode.writersArray.push(_element)
           })
         }

@@ -19,7 +19,6 @@ export default class OfficeSceneRelationship extends React.Component {
       const svg = d3.select(this.svgRef.current)
         .attr('viewBox', [0,0,this.w,this.h].join(' '))
         .attr('width', this.w)        
-        .style('outline', '1px solid black')
         .style('font-family', 'Roboto')
     }
 

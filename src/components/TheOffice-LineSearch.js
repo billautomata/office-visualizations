@@ -29,7 +29,7 @@ export default class OfficeQuoteSearch extends React.Component {
 
       this.state = {
         doneLoading: false,
-        quote: "that's what she said",
+        quote: this.props.searchTerm ? this.props.searchTerm : "that's what she said",
         matches: []
       }
       this.lines = {}
@@ -98,8 +98,6 @@ export default class OfficeQuoteSearch extends React.Component {
       
       const seasons = d3.range(9)
 
-      // const charactersToRemove = ['?','.',',','!','-']
-
       const series = this.props.series
       const lines = this.props.lines 
 
@@ -146,7 +144,7 @@ export default class OfficeQuoteSearch extends React.Component {
           elements[seasonIndex][episode] = gEpisode
           gEpisode.append('circle').attr('data-testid', `circle_${seasonIndex}_${episode}`).attr('cx', 0).attr('cy',0).attr('r',14)
             .attr('stroke', '#AAA').attr('fill', 'white')
-          gEpisode.append('text').attr('cx', 0).attr('cy',0).attr('dy','0.33em').attr('text-anchor', 'middle')            
+          gEpisode.append('text').attr('cx', 0).attr('cy',0).attr('data-testid',`circle_text_${seasonIndex}_${episode}`).attr('dy','0.33em').attr('text-anchor', 'middle')            
             .text(1).attr('font-size', 12).attr('font-weight', 700)
             .attr('fill', 'white')
         })
@@ -221,22 +219,25 @@ export default class OfficeQuoteSearch extends React.Component {
             Object.values(episodes).forEach((episode,episodeIdx)=>{
               if(seasonsAndEpisodesCounts[seasonIdx] !== undefined && seasonsAndEpisodesCounts[seasonIdx][episodeIdx] !== undefined) {
                 episodesFound += 1
-                episode.select('circle')
-                  .attr('fill', '#a6cee3')
-                  .attr('stroke', 'none')
-                  .style('cursor', 'pointer')
-                  .on('click', ()=>{
-                    const reference = document.getElementById(`quote_${seasonIdx+1}_${episodeIdx+1}`)
-                    if(reference === null) {
-                      return
-                    }
-                    window.scrollTo({
-                      top: reference.offsetTop,
-                      behavior: 'smooth'
-                    })
-                  })
                 episode.select('text').text(seasonsAndEpisodesCounts[seasonIdx][episodeIdx])
-                  .attr('fill', '#333') 
+                if(episodesFound >= 1) {
+                  episode.select('circle')
+                    .attr('class', 'active-circle')
+                    .attr('fill', '#a6cee3')
+                    .attr('stroke', 'none')
+                    .style('cursor', 'pointer')
+                    .on('click', ()=>{
+                      const reference = document.getElementById(`quote_${seasonIdx+1}_${episodeIdx+1}`)
+                      if(reference === null) {
+                        return
+                      }
+                      window.scrollTo({
+                        top: reference.offsetTop,
+                        behavior: 'smooth'
+                      })
+                    })
+                    episode.select('text').attr('fill', '#333')
+                }
               }
             })
           })
@@ -342,7 +343,7 @@ export default class OfficeQuoteSearch extends React.Component {
             </Grid>
             <Grid container item style={{padding: '12px 32px', textAlign: 'left', lineHeight: '1.33em'}}>
               <Grid item>
-                This application lets you search every line from the NBC television show <a style={{color: 'steelblue'}} href="https://en.wikipedia.org/wiki/The_Office_(American_TV_series)">The Office</a>, and visualizes the results to give you insights as to which episode the quote the quote appears, who said the quote, and the lines before and after the quote.
+                This application lets you search every line from the NBC television show <a style={{color: 'steelblue'}} href="https://en.wikipedia.org/wiki/The_Office_(American_TV_series)">The Office</a>, and visualizes the results to give you insight as to which episode the quote appears, who said the quote, when they said the quote, how many times they said the quote, and the context of the quote.
               </Grid>
               <Grid item style={{width: 640}} xs={12}>
                 <ul>
@@ -398,13 +399,26 @@ export default class OfficeQuoteSearch extends React.Component {
               <Grid item xs={12}>
                 <svg ref={this.svgRef} data-testid='bubbles'/>
               </Grid>
-              <Grid item container xs={12} justify='center'>
-                {/* <Grid item xs={2}><svg ref={this.svgRef2}/></Grid> */}
-                <Grid item xs={9}><div ref={this.treemapRef} style={{ position: 'relatdive' }} /></Grid>
+              <Grid item container xs={12} justify='center' style={{ width: 1024 }}>
+                <Grid container item ref={this.treemapRef} style={{ width: 1024 }}/>
               </Grid>         
               <Grid item container style={{width: 1024, margin: 'auto', fontFamily: 'Roboto', letterSpacing: 0.5}}>
                 <Grid data-testid='results-found' item style={{ textAlign: 'right' }} xs={12}>
-                  <b>{ this.hoverFilterCharacter === null ? this.state.matches.length : this.state.matches.filter(o=>{return o.speaker === this.hoverFilterCharacter}).length }</b> results found 
+                  {
+                    (()=>{
+                      const count = this.hoverFilterCharacter === null ? this.state.matches.length : this.state.matches.filter(o=>{return o.speaker === this.hoverFilterCharacter}).length
+                      if (count === 1) {
+                        return (
+                          <><b>{ count }</b> result found</>
+                        )
+                      } else {                      
+                        return (
+                          <><b>{ count }</b> results found</>
+                        )
+                      }
+                    })()
+                  }
+                  
                   {
                     (()=>{
                       if (this.state.matches.length > this.limitResults) {
